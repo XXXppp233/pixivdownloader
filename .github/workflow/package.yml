@@ -1,0 +1,45 @@
+name: Build Container to Github Package
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  Push-to-Packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Downcase REPO_NAME
+        id: string
+        run: |
+          # ${ github.repository } 会输出 "User/Repo"
+          # 使用 ,, 转换为纯小写，并存入 GitHub Actions 的环境变量中
+          echo "REPO_LC=${IMAGE_NAME,,}" >> $GITHUB_ENV
+        env:
+          IMAGE_NAME: ${{ github.repository }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Current Date
+        id: date
+        run: echo "today=$(date -u +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}/simple:latest
+            ghcr.io/${{ env.REPO_LC }}/simple:${{ steps.date.outputs.today }}
